@@ -1,0 +1,107 @@
+hereimport discord
+from discord.ext import commands
+import json
+import os
+import random
+import asyncio
+
+TOKEN = 'MTUyNzQxNjIxMzE2MzA4NTgyNQ.GY9uxv.qp6ChWHTs-3A8qb5EKVzXT06ABt98ii6UkpGMM'
+PREFIX = 'RHCOW'
+bot = commands.Bot(command_prefix=PREFIX, intents=discord.Intents.all())
+
+DATA_FILE = 'data.json'
+
+def load_data():
+    if not os.path.exists(DATA_FILE):
+        return {}
+    with open(DATA_FILE, 'r') as f:
+        return json.load(f)
+
+def save_data(data):
+    with open(DATA_FILE, 'w') as f:
+        json.dump(data, f, indent=4)
+
+@bot.event
+async def on_ready():
+    print(f'✅ Chaos of Wars bot is online!')
+
+@bot.command()
+async def rules(ctx):
+    story = """
+    **📜 ساحة الفوضى (Chaos of Wars Arena) 📜**
+    في عالمٍ لم يعد يعرف معنى العدالة، ظهرت منظمة غامضة تُدعى "النظام".
+    تم اختطافك، وتستيقظ لتجد نفسك داخل ساحة موت.
+    **اكتب `RHCOWplay` وابدأ رحلتك نحو الموت... أو نحو الخلود.**
+    """
+    await ctx.send(story)
+
+@bot.command()
+async def shop(ctx):
+    embed = discord.Embed(title="🏪 متجر ساحة الفوضى", color=0x00ff00)
+    embed.add_field(name="🛡️ درع النجاة", value="السعر: 50 قطعة", inline=False)
+    embed.add_field(name="💣 قنبلة الفوضى", value="السعر: 75 قطعة", inline=False)
+    await ctx.send(embed=embed)
+
+@bot.command()
+async def coins(ctx):
+    user_id = str(ctx.author.id)
+    data = load_data()
+    if user_id not in data:
+        data[user_id] = {"coins": 100, "shield": 0, "grenade": 0}
+        save_data(data)
+    await ctx.send(f"💰 {ctx.author.mention}، رصيدك الحالي: **{data[user_id]['coins']}** قطعة.")
+
+@bot.command()
+async def buy(ctx, *, item=None):
+    user_id = str(ctx.author.id)
+    data = load_data()
+    if user_id not in data:
+        data[user_id] = {"coins": 100, "shield": 0, "grenade": 0}
+    if item is None:
+        await ctx.send("❌ مثال: `RHCOWbuy درع`")
+        return
+    prices = {"درع": 50, "قنبلة": 75}
+    if item not in prices:
+        await ctx.send("❌ هذا العنصر غير موجود!")
+        return
+    price = prices[item]
+    if data[user_id]["coins"] < price:
+        await ctx.send(f"❌ ليس لديك نقود كافية!")
+        return
+    data[user_id]["coins"] -= price
+    if item == "درع":
+        data[user_id]["shield"] += 1
+    elif item == "قنبلة":
+        data[user_id]["grenade"] += 1
+    save_data(data)
+    await ctx.send(f"✅ اشتريت **{item}**!")
+
+@bot.command()
+async def play(ctx):
+    await ctx.send(f"🔫 {ctx.author.mention} انضم للساحة! اكتب `RHCOWstart` لبدء المعركة.")
+
+@bot.command()
+async def start(ctx):
+    members = [m for m in ctx.guild.members if not m.bot]
+    if len(members) < 2:
+        await ctx.send("❌ لا يوجد لاعبين كافيين!")
+        return
+    killer = random.choice(members)
+    victim = random.choice([m for m in members if m != killer])
+    await ctx.send(f"🔫 **القاتل: {killer.mention}** يوجه مسدسه نحو {victim.mention}...")
+    data = load_data()
+    if str(victim.id) not in data:
+        data[str(victim.id)] = {"coins": 100, "shield": 0, "grenade": 0}
+    if data[str(victim.id)].get("shield", 0) > 0:
+        data[str(victim.id)]["shield"] -= 1
+        save_data(data)
+        await ctx.send(f"🛡️ **نجا {victim.mention}!** درعه تحطم!")
+    else:
+        await ctx.send(f"💀 **قُتل {victim.mention}!**")
+        if str(killer.id) not in data:
+            data[str(killer.id)] = {"coins": 100, "shield": 0, "grenade": 0}
+        data[str(killer.id)]["coins"] += 50
+        save_data(data)
+        await ctx.send(f"🏆 {killer.mention} ربح **50 قطعة**!")
+
+bot.run(TOKEN)
