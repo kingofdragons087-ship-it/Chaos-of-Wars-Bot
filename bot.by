@@ -1,14 +1,25 @@
-hereimport discord
+import discord
 from discord.ext import commands
 import json
 import os
 import random
 import asyncio
 
-TOKEN = 'MTUyNzQxNjIxMzE2MzA4NTgyNQ.GY9uxv.qp6ChWHTs-3A8qb5EKVzXT06ABt98ii6UkpGMM'
+# =============================================
+# (1) التوكن الجديد الخاص بك (تم وضعه هنا)
+# =============================================
+TOKEN = 'MTUyNzQxNjIxMzE2MzA4NTgyNQ.GU6RoY.1-h-Fm9T596hwD2d1K_Bu51mCmh-YXcK-nNeVI'
 PREFIX = 'RHCOW'
-bot = commands.Bot(command_prefix=PREFIX, intents=discord.Intents.all())
 
+# =============================================
+# (2) إعدادات البوت الأساسية
+# =============================================
+intents = discord.Intents.all()
+bot = commands.Bot(command_prefix=PREFIX, intents=intents)
+
+# =============================================
+# (3) نظام حفظ البيانات (النقود والمخزون)
+# =============================================
 DATA_FILE = 'data.json'
 
 def load_data():
@@ -21,25 +32,44 @@ def save_data(data):
     with open(DATA_FILE, 'w') as f:
         json.dump(data, f, indent=4)
 
+# =============================================
+# (4) أمر بدء تشغيل البوت
+# =============================================
 @bot.event
 async def on_ready():
     print(f'✅ Chaos of Wars bot is online!')
 
+# =============================================
+# (5) قصة ساحة الفوضى (الأمر RHCOWrules)
+# =============================================
 @bot.command()
 async def rules(ctx):
     story = """
     **📜 ساحة الفوضى (Chaos of Wars Arena) 📜**
+
     في عالمٍ لم يعد يعرف معنى العدالة، ظهرت منظمة غامضة تُدعى "النظام".
-    تم اختطافك، وتستيقظ لتجد نفسك داخل ساحة موت.
+    قررت هذه المنظمة بناء أعظم ساحة قتال تحت الأرض على الإطلاق.
+    أنت لست هنا بمحض إرادتك. لقد تم اختطافك، وتستيقظ لتجد نفسك داخل غرفة زجاجية معتمة.
+
+    *"مرحباً أيها المختار. القاعدة الوحيدة هنا هي: البقاء على قيد الحياة."*
+
+    تم تسليمك 100 قطعة نقدية من عملة الساحة (عملات RH).
+    **🛡️ درع النجاة (Shield):** يحميك من رصاصة واحدة (السعر: 50 قطعة).
+    **💣 قنبلة الفوضى (Grenade):** تقتل خصمك فوراً (السعر: 75 قطعة).
+
     **اكتب `RHCOWplay` وابدأ رحلتك نحو الموت... أو نحو الخلود.**
     """
     await ctx.send(story)
 
+# =============================================
+# (6) نظام المتجر والنقود
+# =============================================
 @bot.command()
 async def shop(ctx):
     embed = discord.Embed(title="🏪 متجر ساحة الفوضى", color=0x00ff00)
     embed.add_field(name="🛡️ درع النجاة", value="السعر: 50 قطعة", inline=False)
     embed.add_field(name="💣 قنبلة الفوضى", value="السعر: 75 قطعة", inline=False)
+    embed.set_footer(text="للشراء: RHCOWbuy [اسم العنصر]")
     await ctx.send(embed=embed)
 
 @bot.command()
@@ -57,51 +87,81 @@ async def buy(ctx, *, item=None):
     data = load_data()
     if user_id not in data:
         data[user_id] = {"coins": 100, "shield": 0, "grenade": 0}
+    
     if item is None:
-        await ctx.send("❌ مثال: `RHCOWbuy درع`")
+        await ctx.send("❌ مثال للشراء: `RHCOWbuy درع`")
         return
+    
     prices = {"درع": 50, "قنبلة": 75}
     if item not in prices:
-        await ctx.send("❌ هذا العنصر غير موجود!")
+        await ctx.send("❌ هذا العنصر غير موجود في المتجر!")
         return
+    
     price = prices[item]
     if data[user_id]["coins"] < price:
-        await ctx.send(f"❌ ليس لديك نقود كافية!")
+        await ctx.send(f"❌ ليس لديك نقود كافية! تحتاج **{price}** قطعة.")
         return
+    
     data[user_id]["coins"] -= price
     if item == "درع":
         data[user_id]["shield"] += 1
     elif item == "قنبلة":
         data[user_id]["grenade"] += 1
+    
     save_data(data)
-    await ctx.send(f"✅ اشتريت **{item}**!")
+    await ctx.send(f"✅ اشتريت **{item}** بنجاح! الرصيد المتبقي: {data[user_id]['coins']} قطعة.")
 
+# =============================================
+# (7) لعبة الروليت (فوضى الحرب)
+# =============================================
 @bot.command()
 async def play(ctx):
-    await ctx.send(f"🔫 {ctx.author.mention} انضم للساحة! اكتب `RHCOWstart` لبدء المعركة.")
+    user_id = str(ctx.author.id)
+    data = load_data()
+    if user_id not in data:
+        data[user_id] = {"coins": 100, "shield": 0, "grenade": 0}
+        save_data(data)
+
+    await ctx.send(f"🔫 **{ctx.author.mention} انضم إلى ساحة الفوضى!** (يجب أن يكون شخصين للعب).\nاكتب `RHCOWstart` لبدء المعركة.")
 
 @bot.command()
 async def start(ctx):
+    # جلب الأعضاء غير البوتات
     members = [m for m in ctx.guild.members if not m.bot]
     if len(members) < 2:
-        await ctx.send("❌ لا يوجد لاعبين كافيين!")
+        await ctx.send("❌ لا يوجد لاعبين كافيين! يجب أن يكون شخصين على الأقل.")
         return
+    
     killer = random.choice(members)
     victim = random.choice([m for m in members if m != killer])
-    await ctx.send(f"🔫 **القاتل: {killer.mention}** يوجه مسدسه نحو {victim.mention}...")
+    
+    await ctx.send(f"⏳ جاري اختيار القاتل...")
+    await asyncio.sleep(2)
+    await ctx.send(f"🔫 **القاتل الصامت هو: {killer.mention}**")
+    await asyncio.sleep(2)
+    await ctx.send(f"🎯 القاتل يوجه مسدسه نحو {victim.mention}...")
+    await asyncio.sleep(2)
+    
+    # التحقق من الدرع
     data = load_data()
     if str(victim.id) not in data:
         data[str(victim.id)] = {"coins": 100, "shield": 0, "grenade": 0}
+    
     if data[str(victim.id)].get("shield", 0) > 0:
         data[str(victim.id)]["shield"] -= 1
         save_data(data)
-        await ctx.send(f"🛡️ **نجا {victim.mention}!** درعه تحطم!")
+        await ctx.send(f"🛡️ **لقد نجا {victim.mention}!** درعه تحطم لكنه بقي حياً!")
     else:
-        await ctx.send(f"💀 **قُتل {victim.mention}!**")
+        await ctx.send(f"💀 **لقد قُتل {victim.mention}!** خارج ساحة الفوضى!")
+        # إعطاء مكافأة للقاتل
         if str(killer.id) not in data:
             data[str(killer.id)] = {"coins": 100, "shield": 0, "grenade": 0}
         data[str(killer.id)]["coins"] += 50
         save_data(data)
-        await ctx.send(f"🏆 {killer.mention} ربح **50 قطعة**!")
+        await ctx.send(f"🏆 {killer.mention} ربح المعركة وحصل على **50 قطعة** إضافية!")
 
-bot.run(TOKEN)
+# =============================================
+# (8) تشغيل البوت
+# =============================================
+if __name__ == "__main__":
+    bot.run(TOKEN)
