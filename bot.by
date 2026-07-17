@@ -6,9 +6,10 @@ import random
 import asyncio
 
 # =============================================
-# (1) التوكن الجديد الخاص بك (تم وضعه هنا)
+# (1) التوكن سيكون مخفيًا في Environment Variables في Render
+# لن نضعه هنا حتى لا يلغيه ديسكورد مرة أخرى!
 # =============================================
-TOKEN = 'MTUyNzQxNjIxMzE2MzA4NTgyNQ.GU6RoY.1-h-Fm9T596hwD2d1K_Bu51mCmh-YXcK-nNeVI'
+TOKEN = os.getenv('TOKEN')
 PREFIX = 'RHCOW'
 
 # =============================================
@@ -164,4 +165,7 @@ async def start(ctx):
 # (8) تشغيل البوت
 # =============================================
 if __name__ == "__main__":
-    bot.run(TOKEN)
+    if TOKEN is None:
+        print("❌ خطأ: لم يتم العثور على التوكن! تأكد من إضافته في Environment Variables في Render.")
+    else:
+        bot.run(TOKEN)
